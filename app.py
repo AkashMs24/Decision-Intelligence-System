@@ -11,6 +11,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from utils.llm_engine import ai
 from datetime import datetime
 
 # Import pipeline and AI function
@@ -226,15 +227,15 @@ with tab_ai:
     top_driver = max(R["churn"]["feature_importance"], key=R["churn"]["feature_importance"].get)
 
     SYS_PROMPT = f"""You are a helpful business analyst.
-Current data:
+Live data:
 - Forecast: {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
-- Churn: {R['churn'].get('rate', 0):.1f}%
-- Top driver: {top_driver}
+- Churn Rate: {R['churn'].get('rate', 0):.1f}%
+- Top Driver: {top_driver}
 
-Answer based on this data. Be direct."""
+Answer the user's question using the above data. Be direct and useful."""
 
     if "chat" not in st.session_state:
-        st.session_state.chat = [{"role": "assistant", "content": "Hello! Ask me anything about the business data."}]
+        st.session_state.chat = [{"role": "assistant", "content": "Hello! Ask me anything about the business."}]
 
     for msg in st.session_state.chat:
         with st.chat_message(msg["role"]):
@@ -247,7 +248,7 @@ Answer based on this data. Be direct."""
 
         with st.spinner("Calling Groq..."):
             history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat[:-1]]
-            ans = ai(SYS_PROMPT, prompt, history)     # ← Important: using ai from llm_engine
+            ans = ai(SYS_PROMPT, prompt, history)   # ← This must call the new ai
 
         st.session_state.chat.append({"role": "assistant", "content": ans})
         with st.chat_message("assistant"):
