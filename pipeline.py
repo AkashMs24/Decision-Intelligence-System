@@ -1,3 +1,4 @@
+# pipeline.py
 import pandas as pd
 from utils.data_loader import load_data
 from utils.data_preprocessor import transform_user_data
@@ -21,10 +22,13 @@ class DecisionIQPipeline:
 
         top = max(ch["feature_importance"], key=ch["feature_importance"].get)
 
+        # FIXED: Use correct parameter names
         insights = ai(
-            system="You are a senior business analyst presenting to the CEO. Be sharp.",
-            user=f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
-                 f"Churn: {ch['rate']:.1f}%\nTop driver: {top}\nAnomalies: {len(an)}"
+            system_prompt="You are a senior business analyst presenting to the CEO. Be sharp and specific.",
+            user_prompt=f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
+                        f"Churn: {ch['rate']:.1f}%\n"
+                        f"Top driver: {top}\n"
+                        f"Anomalies: {len(an)}"
         )
 
         return {
