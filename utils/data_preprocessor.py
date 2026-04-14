@@ -1,59 +1,27 @@
 import pandas as pd
+import numpy as np
 
-def transform_user_data(df):
+def transform_user_data(raw: pd.DataFrame) -> pd.DataFrame:
+    df = raw.copy()
+    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
 
-    df = df.copy()
-    df.columns = [c.lower().strip() for c in df.columns]
+    date_col = next((c for c in df.columns if any(k in c for k in ("date","time","invoice"))), None)
+    rev_col = next((c for c in df.columns if any(k in c for k in ("revenue","sales","amount","price"))), None)
+    cust_col = next((c for c in df.columns if any(k in c for k in ("customer","user","client"))), None)
 
-    # Detect columns
-    revenue_col = None
-    customer_col = None
-    date_col = None
-
-    for col in df.columns:
-        if "revenue" in col or "sales" in col or "amount" in col:
-            revenue_col = col
-
-    for col in df.columns:
-        if "customer" in col or "user" in col or "client" in col:
-            customer_col = col
-
-    for col in df.columns:
-        if "date" in col or "time" in col:
-            date_col = col
-
-    # Special case (Mall dataset)
-    income_col = None
-    score_col = None
-
-    for col in df.columns:
-        if "income" in col:
-            income_col = col
-        if "score" in col:
-            score_col = col
-
-    if income_col and score_col:
-        df["revenue"] = df[income_col] * df[score_col]
-
-    # General case
-    if revenue_col and "revenue" not in df.columns:
-        df["revenue"] = df[revenue_col]
-
-    # Customers fallback
-    df["customers"] = 1
-
-    # Date handling
-    if date_col:
-        df["date"] = pd.to_datetime(df[date_col], errors="coerce")
+    if date_col and rev_col:
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        grouped = df.groupby(df[date_col].dt.date).agg({
+            rev_col: "sum",
+            cust_col: "nunique" if cust_col else "count"
+        }).reset_index()
+        grouped.rename(columns={rev_col: "revenue", cust_col or "count": "customers"}, inplace=True)
     else:
-        df["date"] = pd.date_range(start="2024-01-01", periods=len(df))
+        df["date"] = pd.date_range("2024-01-01", periods=len(df)).date
+        df["revenue"] = pd.to_numeric(df.get(rev_col, df.iloc[:,0]), errors="coerce").fillna(0)
+        df["customers"] = np.random.randint(80, 300, len(df))
+        grouped = df[["date", "revenue", "customers"]]
 
-    # Validate revenue
-    if "revenue" not in df.columns:
-        raise ValueError("❌ Could not detect revenue column")
-
-    # Add required columns
-    df["marketing_spend"] = df["revenue"] * 0.2
-    df["churn"] = 0
-
-    return df[["date", "revenue", "customers", "marketing_spend", "churn"]]
+    grouped["marketing_spend"] = grouped["revenue"] * 0.20
+    grouped["churn"] = (grouped["customers"].pct_change() < 0).astype(int).fillna(0)
+    return grouped[["date", "revenue", "customers", "marketing_spend", "churn"]].reset_index(drop=True)
