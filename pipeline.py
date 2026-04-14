@@ -22,7 +22,7 @@ class DecisionIQPipeline:
 
         top = max(ch["feature_importance"], key=ch["feature_importance"].get)
 
-        # FIXED: Use correct parameter names
+        # Corrected call to ai()
         insights = ai(
             system_prompt="You are a senior business analyst presenting to the CEO. Be sharp and specific.",
             user_prompt=f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
