@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def ai(system_prompt: str, user_prompt: str, history=None):
-    """Simple & Direct Groq Call - No old fallback"""
-    
-    # Get API key from Streamlit Secrets or .env
+    """Clean Groq call - NO old fallback code at all"""
+
+    # Get API key
     api_key = None
     try:
         api_key = st.secrets["GROQ_API_KEY"]
@@ -16,7 +16,7 @@ def ai(system_prompt: str, user_prompt: str, history=None):
         api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
-        return "❌ API Key Missing. Please add GROQ_API_KEY in Streamlit Secrets or .env file."
+        return "❌ Missing Groq API Key.\n\nPlease add GROQ_API_KEY in Streamlit Secrets or .env file."
 
     try:
         from groq import Groq
@@ -28,7 +28,7 @@ def ai(system_prompt: str, user_prompt: str, history=None):
         messages.append({"role": "user", "content": user_prompt})
 
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",   # Using smaller, faster model for testing
+            model="llama-3.1-8b-instant",   # fast model for testing
             messages=messages,
             max_tokens=600,
             temperature=0.4,
@@ -36,4 +36,4 @@ def ai(system_prompt: str, user_prompt: str, history=None):
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        return f"❌ Groq Error: {str(e)[:150]}"
+        return f"❌ Groq Error:\n{str(e)[:200]}"
