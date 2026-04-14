@@ -6,17 +6,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_groq_key():
-    """Support both local .env and Streamlit Cloud Secrets"""
     try:
+        # For Streamlit Cloud
         return st.secrets["GROQ_API_KEY"]
     except:
+        # For local .env
         return os.getenv("GROQ_API_KEY")
 
-def ai(system_prompt: str, user_prompt: str, history=None, max_tokens=700):
+def ai(system_prompt: str, user_prompt: str, history=None):
+    """Clean Groq call - NO old fallback logic"""
+    
     api_key = get_groq_key()
     
     if not api_key:
-        return "⚠️ Groq API key is missing. Please add GROQ_API_KEY in .env or Streamlit Secrets."
+        return "❌ Groq API key is missing. Please add it correctly in Streamlit Secrets or .env file."
 
     try:
         from groq import Groq
@@ -27,30 +30,19 @@ def ai(system_prompt: str, user_prompt: str, history=None, max_tokens=700):
             messages.extend(history)
         messages.append({"role": "user", "content": user_prompt})
 
-        # Try best models first
-        models = ["llama-3.1-70b-versatile", "llama-3.1-8b-instant"]
+        response = client.chat.completions.create(
+            model="llama-3.1-70b-versatile",   # Best model
+            messages=messages,
+            max_tokens=700,
+            temperature=0.4,
+        )
+        return response.choices[0].message.content.strip()
 
-        for model in models:
-            try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=0.4,
-                )
-                return response.choices[0].message.content.strip()
-            except Exception as e:
-                err = str(e).lower()
-                if "rate limit" in err or "429" in err:
-                    return "⚠️ Rate limit reached. Please wait a moment and try again."
-                if "not found" in err or "deprecated" in err:
-                    continue  # try next model
-                else:
-                    break
-
-        return "⚠️ Groq models failed. Falling back to basic insight."
-
-    except ImportError:
-        return "⚠️ Groq library not installed. Run: pip install groq"
     except Exception as e:
-        return f"⚠️ Groq error: {str(e)[:120]}...\n\nPlease check your API key and internet."
+        error_msg = str(e).lower()
+        if "invalid api key" in error_msg or "authentication" in error_msg:
+            return "❌ Invalid Groq API key. Please check your key in Streamlit Secrets."
+        elif "rate limit" in error_msg:
+            return "⚠️ Rate limit reached. Please wait 10 seconds and try again."
+        else:
+            return f"❌ Groq error: {str(e)[:100]}...\n\nPlease check your API key."
