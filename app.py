@@ -224,37 +224,70 @@ with tab_wi:
 with tab_ai:
     st.subheader("🤖 CEO Assistant — Groq LLaMA-3 70B")
 
-    top_driver = max(R["churn"]["feature_importance"], key=R["churn"]["feature_importance"].get)
+    # ✅ Safe extraction
+    churn_data = R.get("churn", {})
+    feature_importance = churn_data.get("feature_importance", {})
 
-    SYS_PROMPT = f"""You are the CEO's personal AI business analyst.
-Live data:
-- Revenue Forecast (4 months): {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
-- Churn Risk: {R['churn'].get('rate', 0):.1f}%
+    top_driver = max(feature_importance, key=feature_importance.get) if feature_importance else "N/A"
+
+    forecast_list = R.get("forecast", [])
+    forecast_str = ", ".join([f"₹{v/100000:.1f}L" for v in forecast_list]) if forecast_list else "No data"
+
+    churn_rate = churn_data.get("rate", 0)
+    anomalies = len(R.get("anomalies", []))
+
+    # ✅ IMPROVED SYSTEM PROMPT (VERY IMPORTANT)
+    SYS_PROMPT = f"""
+You are a CEO-level AI business assistant.
+
+Rules:
+- If user greets or casual talk → respond normally (NO insights)
+- If user asks business/data questions → give insights using ONLY this data
+- Do NOT hallucinate numbers
+- Be concise and actionable
+
+Live Data:
+- Revenue Forecast (4 months): {forecast_str}
+- Churn Risk: {churn_rate:.1f}%
 - Top Driver: {top_driver}
-- Anomalies: {len(R.get('anomalies', []))}
+- Anomalies: {anomalies}
+"""
 
-Be concise, use real numbers, and give clear actions."""
-
+    # ✅ Chat state
     if "chat" not in st.session_state:
-        st.session_state.chat = [{"role": "assistant", "content": "Hello! I have full live context. Ask me anything about revenue, churn, or strategy."}]
+        st.session_state.chat = [
+            {
+                "role": "assistant",
+                "content": "👋 Hello! I have full live context. Ask me about revenue, churn, or strategy."
+            }
+        ]
 
+    # ✅ Display chat
     for msg in st.session_state.chat:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
+    # ✅ User input
     if prompt := st.chat_input("Ask a business question …"):
         st.session_state.chat.append({"role": "user", "content": prompt})
+
         with st.chat_message("user"):
             st.write(prompt)
 
         with st.spinner("Calling Groq..."):
-            history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat[:-1]]
+            history = [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.chat[:-1]
+            ]
+
             ans = ai(SYS_PROMPT, prompt, history)
 
         st.session_state.chat.append({"role": "assistant", "content": ans})
+
         with st.chat_message("assistant"):
             st.write(ans)
 
+    # ✅ Clear chat
     if st.button("🗑 Clear chat"):
         st.session_state.chat = []
         st.rerun()
