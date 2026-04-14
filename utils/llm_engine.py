@@ -1,33 +1,48 @@
 import os
+import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()   # for local development
 
-def generate_insights(context):
-    """Rule-based fallback"""
-    return "Revenue shows strong momentum. Churn is improving. Focus on customer growth segments with targeted re-engagement campaigns."
+def get_groq_key():
+    """Get Groq key from Streamlit Secrets or .env"""
+    # First try Streamlit Secrets (for cloud)
+    try:
+        return st.secrets["GROQ_API_KEY"]
+    except:
+        # Then try .env (for local)
+        return os.getenv("GROQ_API_KEY")
 
-def ai(system: str, user: str, history=None, max_tokens=700):
-    """Real Groq AI with fallback"""
+def ai(system_prompt: str, user_prompt: str, history=None, max_tokens=700):
+    api_key = get_groq_key()
+    
+    if not api_key:
+        return "⚠️ Groq API key is missing. Please add it in .env (local) or Streamlit Secrets (cloud)."
+
     try:
         from groq import Groq
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        client = Groq(api_key=api_key)
         
-        models = ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+        models = ["llama-3.1-70b-versatile", "llama-3.1-8b-instant"]
         
-        msgs = [{"role": "system", "content": system}]
+        messages = [{"role": "system", "content": system_prompt}]
         if history:
-            msgs.extend(history)
-        msgs.append({"role": "user", "content": user})
+            messages.extend(history)
+        messages.append({"role": "user", "content": user_prompt})
 
         for model in models:
             try:
                 r = client.chat.completions.create(
-                    model=model, messages=msgs, max_tokens=max_tokens, temperature=0.4
+                    model=model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.4
                 )
                 return r.choices[0].message.content.strip()
             except:
                 continue
-        return generate_insights({})
-    except Exception:
-        return generate_insights({})
+                
+        return "⚠️ Groq models failed. Please try again."
+        
+    except Exception as e:
+        return f"⚠️ Error: {str(e)[:80]}..."
