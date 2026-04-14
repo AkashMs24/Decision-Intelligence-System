@@ -225,36 +225,36 @@ with tab_ai:
 
     top_driver = max(R["churn"]["feature_importance"], key=R["churn"]["feature_importance"].get)
 
-    SYS_PROMPT = f"""You are the CEO's personal AI business analyst.
-Live data:
-- Revenue Forecast: {[f'₹{v/100000:.1f}L' for v in R['forecast']]}
-- Churn: {R['churn']['rate']:.1f}% | Top driver: {top_driver}
-- Anomalies: {len(R['anomalies'])}
+    SYS_PROMPT = f"""You are the CEO's personal AI business analyst with live data.
+Revenue Forecast (4 months): {[f'₹{v/100000:.1f}L' for v in R['forecast']]}
+Churn Risk: {R['churn']['rate']:.1f}% (previous {R['churn']['rate_prev']:.1f}%)
+Top Churn Driver: {top_driver}
+Anomalies detected: {len(R['anomalies'])}
 
-Be sharp, use real numbers, and give actionable advice."""
+Answer using real numbers from above. Be concise and give clear actions."""
 
     if "chat" not in st.session_state:
-        st.session_state.chat = [{"role":"assistant","content": "Hello! I have full live context on your business data. Ask me anything about revenue, churn, or strategy."}]
+        st.session_state.chat = [{"role": "assistant", "content": "Hello! I have full live context. Ask me anything about revenue, churn or strategy."}]
 
     for msg in st.session_state.chat:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
     if prompt := st.chat_input("Ask a business question …"):
-        st.session_state.chat.append({"role":"user","content":prompt})
+        st.session_state.chat.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
 
-        with st.spinner("Thinking with Groq..."):
+        with st.spinner("Calling Groq..."):
             history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat[:-1]]
-            ans = ai(SYS_PROMPT, prompt, history=history)
+            ans = ai(SYS_PROMPT, prompt, history=history)   # ← using new ai
 
-        st.session_state.chat.append({"role":"assistant","content":ans})
+        st.session_state.chat.append({"role": "assistant", "content": ans})
         with st.chat_message("assistant"):
             st.write(ans)
 
     if st.button("🗑 Clear chat"):
         st.session_state.chat = []
         st.rerun()
-
+        
 st.caption("All outputs generated from real data — No static values")
