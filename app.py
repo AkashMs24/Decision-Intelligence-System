@@ -226,16 +226,17 @@ with tab_ai:
 
     top_driver = max(R["churn"]["feature_importance"], key=R["churn"]["feature_importance"].get)
 
-    SYS_PROMPT = f"""You are a helpful business analyst.
+    SYS_PROMPT = f"""You are the CEO's personal AI business analyst.
 Live data:
-- Forecast: {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
-- Churn Rate: {R['churn'].get('rate', 0):.1f}%
+- Revenue Forecast (4 months): {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
+- Churn Risk: {R['churn'].get('rate', 0):.1f}%
 - Top Driver: {top_driver}
+- Anomalies: {len(R.get('anomalies', []))}
 
-Answer the user's question using the above data. Be direct and useful."""
+Be concise, use real numbers, and give clear actions."""
 
     if "chat" not in st.session_state:
-        st.session_state.chat = [{"role": "assistant", "content": "Hello! Ask me anything about the business."}]
+        st.session_state.chat = [{"role": "assistant", "content": "Hello! I have full live context. Ask me anything about revenue, churn, or strategy."}]
 
     for msg in st.session_state.chat:
         with st.chat_message(msg["role"]):
@@ -248,7 +249,7 @@ Answer the user's question using the above data. Be direct and useful."""
 
         with st.spinner("Calling Groq..."):
             history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat[:-1]]
-            ans = ai(SYS_PROMPT, prompt, history)   # ← This must call the new ai
+            ans = ai(SYS_PROMPT, prompt, history)
 
         st.session_state.chat.append({"role": "assistant", "content": ans})
         with st.chat_message("assistant"):
