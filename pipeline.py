@@ -10,10 +10,12 @@ from utils.llm_engine import ai
 class DecisionIQPipeline:
     def __init__(self, uploaded_file=None):
         if uploaded_file is not None:
+            filename = uploaded_file.name
             raw = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
-            self.df = transform_user_data(raw)
+            self.df = transform_user_data(raw, filename)
         else:
             self.df = load_data()
+            self.df.attrs['filename'] = "sample_data.csv"
 
     def run(self):
         fc = forecast_revenue(self.df)
@@ -22,13 +24,16 @@ class DecisionIQPipeline:
 
         top = max(ch["feature_importance"], key=ch["feature_importance"].get)
 
-        # Corrected call to ai()
+        # Rich context for LLM
+        dataset_info = f"Dataset: {self.df.attrs.get('filename', 'Unknown')}, Rows: {self.df.attrs.get('num_rows', 0)}, Columns: {self.df.attrs.get('columns', [])}"
+
         insights = ai(
-            system_prompt="You are a senior business analyst presenting to the CEO. Be sharp and specific.",
-            user_prompt=f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
-                        f"Churn: {ch['rate']:.1f}%\n"
-                        f"Top driver: {top}\n"
-                        f"Anomalies: {len(an)}"
+            system_prompt="You are a senior business analyst presenting to the CEO. Be sharp, honest, and specific.",
+            user_prompt=f"{dataset_info}\n\n"
+                        f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
+                        f"Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
+                        f"Anomalies: {len(an)}\n"
+                        f"Revenue stats - Mean: ₹{self.df['revenue'].mean()/100000:.1f}L, Last: ₹{self.df['revenue'].iloc[-1]/100000:.1f}L"
         )
 
         return {
@@ -43,4 +48,5 @@ class DecisionIQPipeline:
             "insights": insights,
             "customers": int(self.df["customers"].iloc[-1]),
             "customers_prev": int(self.df["customers"].iloc[-30]) if len(self.df) > 30 else int(self.df["customers"].iloc[0]),
+            "dataset_info": dataset_info
         }
