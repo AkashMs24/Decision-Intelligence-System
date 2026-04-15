@@ -1,5 +1,5 @@
 """
-DecisionIQ — Final Version
+DecisionIQ — Final Clean Version
 """
 
 import pandas as pd
@@ -50,17 +50,17 @@ with st.sidebar:
     st.caption("🤖 Insights  : Groq LLaMA-3 70B")
     st.caption(f"🕐 {datetime.now().strftime('%b %d, %H:%M')}")
 
-# ====================== LOAD & RUN PIPELINE (with cache clear) ======================
+# ====================== LOAD & RUN PIPELINE (Force refresh) ======================
 if uploaded:
     with st.spinner("Processing uploaded data..."):
         pipeline = DecisionIQPipeline(uploaded)
 else:
     pipeline = DecisionIQPipeline()
 
-if run_btn or "results" not in st.session_state or st.session_state.get("last_file") != (uploaded.name if uploaded else "sample"):
+if run_btn or "results" not in st.session_state or st.session_state.get("last_filename") != (uploaded.name if uploaded else "sample"):
     with st.spinner("Running analysis..."):
         st.session_state.results = pipeline.run()
-        st.session_state.last_file = uploaded.name if uploaded else "sample"
+        st.session_state.last_filename = uploaded.name if uploaded else "sample"
 
 R = st.session_state.results
 is_business_data = pipeline.df.attrs.get('is_business_like', False)
@@ -95,7 +95,7 @@ tab_fc, tab_ch, tab_an, tab_cmp, tab_wi, tab_ai = st.tabs([
     "📊 Model Comparison", "🔮 What-If", "🤖 CEO Assistant"
 ])
 
-# Forecast Tab
+# Forecast Tab (same as before)
 with tab_fc:
     c1, c2 = st.columns([3, 2])
     with c1:
