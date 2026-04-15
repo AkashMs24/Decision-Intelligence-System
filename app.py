@@ -1,5 +1,5 @@
 """
-DecisionIQ — Final Accurate Version
+DecisionIQ — Final Version
 """
 
 import pandas as pd
@@ -118,7 +118,7 @@ with tab_fc:
         with st.expander("📊 Processed data (last 30 rows)"):
             st.dataframe(pipeline.df.tail(30), use_container_width=True)
 
-# Churn Tab (simplified)
+# Churn Tab (kept simple)
 with tab_ch:
     c1, c2 = st.columns([3, 2])
     fi = R["churn"].get("feature_importance", {})
