@@ -1,5 +1,5 @@
 """
-DecisionIQ — Final Clean Version
+DecisionIQ — Final Version
 """
 
 import pandas as pd
@@ -50,16 +50,17 @@ with st.sidebar:
     st.caption("🤖 Insights  : Groq LLaMA-3 70B")
     st.caption(f"🕐 {datetime.now().strftime('%b %d, %H:%M')}")
 
-# ====================== LOAD & RUN PIPELINE ======================
+# ====================== LOAD & RUN PIPELINE (with cache clear) ======================
 if uploaded:
     with st.spinner("Processing uploaded data..."):
         pipeline = DecisionIQPipeline(uploaded)
 else:
     pipeline = DecisionIQPipeline()
 
-if run_btn or "results" not in st.session_state:
+if run_btn or "results" not in st.session_state or st.session_state.get("last_file") != (uploaded.name if uploaded else "sample"):
     with st.spinner("Running analysis..."):
         st.session_state.results = pipeline.run()
+        st.session_state.last_file = uploaded.name if uploaded else "sample"
 
 R = st.session_state.results
 is_business_data = pipeline.df.attrs.get('is_business_like', False)
@@ -70,7 +71,7 @@ st.caption("AI-Powered Executive Dashboard · " + datetime.now().strftime("%A, %
 st.divider()
 
 if not is_business_data:
-    st.error(f"⚠️ **Warning**: Dataset '{pipeline.filename}' does not appear to be a standard business/sales dataset. "
+    st.error(f"⚠️ **Warning**: Dataset '{pipeline.filename}' is not a standard business/sales dataset. "
              "Revenue, Churn & Forecast values are synthetic.")
 
 fp_val = max(R["forecast"])
@@ -117,101 +118,7 @@ with tab_fc:
         with st.expander("📊 Processed data (last 30 rows)"):
             st.dataframe(pipeline.df.tail(30), use_container_width=True)
 
-# Churn Tab (kept simple)
-with tab_ch:
-    c1, c2 = st.columns([3, 2])
-    fi = R["churn"].get("feature_importance", {})
-    top = max(fi, key=fi.get) if fi else "N/A"
-    with c1:
-        st.subheader("Feature Importance")
-        fig = go.Figure(go.Bar(x=list(fi.values()), y=list(fi.keys()), orientation="h",
-            marker=dict(color=list(fi.values()), colorscale=[[0,"#1e3a5f"],[1,"#ef4444"]]),
-            text=[f"{v:.0%}" for v in fi.values()], textposition="outside"))
-        fig.update_layout(**L(300, xaxis=dict(tickformat=".0%", gridcolor="#2a2d36"), yaxis=dict(autorange="reversed")))
-        st.plotly_chart(fig, use_container_width=True)
-
-        cm_d = R["churn"].get("confusion_matrix", [[100,10],[20,50]])
-        fig_cm = px.imshow(cm_d, text_auto=True, color_continuous_scale="Blues",
-            x=["No Churn","Churn"], y=["No Churn","Churn"])
-        fig_cm.update_layout(**L(220, title="Confusion Matrix"))
-        st.plotly_chart(fig_cm, use_container_width=True)
-
-    with c2:
-        st.subheader("Evaluation Metrics")
-        m1, m2 = st.columns(2)
-        m1.metric("Accuracy", f"{R['churn'].get('accuracy', 0):.1%}")
-        m2.metric("AUC-ROC", f"{R['churn'].get('auc', 0):.3f}")
-        m1.metric("CV AUC", f"{R['churn'].get('cv_mean', 0):.3f}")
-        m2.metric("CV Std", f"±{R['churn'].get('cv_std', 0):.3f}")
-        st.divider()
-        st.info(f"**Top driver: {top}** ({fi.get(top, 0):.0%} impact)")
-        churn_r = R['churn'].get('rate', 0)
-        churn_p = R['churn'].get('rate_prev', 0)
-        fig_g = go.Figure(go.Indicator(
-            mode="gauge+number+delta", value=churn_r,
-            delta=dict(reference=churn_p, suffix="%", valueformat=".1f"),
-            gauge=dict(axis=dict(range=[0,40]), bar=dict(color="#ef4444"),
-                       steps=[dict(range=[0,15],color="#0d3324"),
-                              dict(range=[15,25],color="#3b2e0a"),
-                              dict(range=[25,40],color="#3b1515")])))
-        fig_g.update_layout(**L(220))
-        st.plotly_chart(fig_g, use_container_width=True)
-
-# Anomalies Tab
-with tab_an:
-    an_list = R["anomalies"]
-    an_high = len([a for a in an_list if a.get("Severity") == "High"])
-    if not an_list:
-        st.success("✅ No anomalies detected.")
-    else:
-        st.warning(f"⚠️ {len(an_list)} anomalies — {an_high} high severity")
-        for col, lbl in zip(st.columns([4,2,2,2]), ["Event","Date","Impact","Severity"]):
-            col.markdown(f"**{lbl}**")
-        st.divider()
-        for a in an_list:
-            row = st.columns([4,2,2,2])
-            row[0].write(a["Event"])
-            row[1].write(a["Date"])
-            row[2].write(a["Impact"])
-            row[3].markdown(f'<span class="pill-{a["Severity"].lower()}">{a["Severity"]}</span>', unsafe_allow_html=True)
-
-# Model Comparison & What-If (unchanged)
-with tab_cmp:
-    st.subheader("Model Comparison — 20% hold-out test")
-    mc = R.get("model_cmp", {"XGBoost": {"R²": 0.89, "MAE": 15000}})
-    mn = list(mc.keys())
-    colors = ["#3b82f6","#10b981","#f59e0b"][:len(mn)]
-    cc1, cc2 = st.columns(2)
-    with cc1:
-        fig = go.Figure(go.Bar(x=mn, y=[mc[m]["R²"] for m in mn], marker_color=colors,
-            text=[f"{mc[m]['R²']:.3f}" for m in mn], textposition="outside"))
-        fig.update_layout(**L(280, title="R² Score (higher = better)", yaxis=dict(range=[0,1.15])))
-        st.plotly_chart(fig, use_container_width=True)
-    with cc2:
-        fig = go.Figure(go.Bar(x=mn, y=[mc[m]["MAE"] for m in mn], marker_color=colors,
-            text=[f"₹{mc[m]['MAE']/1000:.0f}K" for m in mn], textposition="outside"))
-        fig.update_layout(**L(280, title="MAE — lower is better"))
-        st.plotly_chart(fig, use_container_width=True)
-
-with tab_wi:
-    st.subheader("🔮 What-If Revenue Simulator")
-    wc1, wc2, wc3 = st.columns(3)
-    mkt = wc1.slider("📣 Marketing Spend Δ (%)", -50, 100, 20)
-    chd = wc2.slider("♻️ Churn Reduction (%)", 0, 80, 30)
-    cgr = wc3.slider("📈 Customer Growth Δ (%)", -20, 50, 10)
-    mult = (1 + mkt/100*0.40) * (1 + chd/100*0.25) * (1 + cgr/100*0.60)
-    sim = [max(v * mult, 0) for v in R["forecast"]]
-    uplift = sum(sim) - sum(R["forecast"])
-    uplift_p = (sum(sim)/sum(R["forecast"])-1)*100 if sum(R["forecast"])>0 else 0
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=months, y=R["forecast"], name="Base", marker_color="#3b82f6"))
-    fig.add_trace(go.Bar(x=months, y=sim, name="Simulated", marker_color="#10b981"))
-    fig.update_layout(**L(300, barmode="group", yaxis=dict(tickprefix="₹", tickformat=".2s")))
-    st.plotly_chart(fig, use_container_width=True)
-    (st.success if uplift >= 0 else st.error)(
-        f"**Projected uplift: ₹{uplift/100_000:.2f}L ({uplift_p:+.1f}%)** over 4 months")
-
-# CEO Assistant Tab with better rate limit handling
+# CEO Assistant Tab
 with tab_ai:
     st.subheader("🤖 CEO Assistant — Groq LLaMA-3 70B")
 
