@@ -214,24 +214,29 @@ with tab_wi:
         f"**Projected uplift: ₹{uplift/100_000:.2f}L ({uplift_p:+.1f}%)** over 4 months")
 
 # CEO Assistant Tab
+# ── CEO ASSISTANT TAB (Better casual + business handling) ─────────────────────
 with tab_ai:
     st.subheader("🤖 CEO Assistant — Groq LLaMA-3 70B")
 
-    SYS_PROMPT = f"""You are an honest CEO-level AI business analyst.
+    SYS_PROMPT = f"""You are a friendly and professional CEO's personal AI business assistant.
 
 Dataset: {pipeline.filename}
 Rows: {len(pipeline.df)}
-Suitable for Business Analysis: {'Yes' if is_business_data else 'No'}
+Business Suitable: {'Yes' if is_business_data else 'No'}
 
 Current Metrics:
 - Revenue Forecast: {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
 - Churn Risk: {R['churn'].get('rate', 0):.1f}%
 - Top Driver: {max(R['churn'].get('feature_importance', {}), key=R['churn'].get('feature_importance', {}).get, default='N/A')}
 
-Be honest."""
+Rules for responding:
+- If the user says 'hi', 'hello', 'how are you', or casual greeting → respond casually and friendly.
+- If the user asks about the dataset or business → use the metrics above and be helpful.
+- Be natural and conversational.
+- Keep responses concise."""
 
     if "chat" not in st.session_state:
-        st.session_state.chat = [{"role": "assistant", "content": "👋 Hello! I have the uploaded dataset. Ask me anything."}]
+        st.session_state.chat = [{"role": "assistant", "content": "👋 Hello! How can I help you today? Ask me anything about the dataset or business."}]
 
     for msg in st.session_state.chat:
         with st.chat_message(msg["role"]):
@@ -242,7 +247,7 @@ Be honest."""
         with st.chat_message("user"):
             st.write(prompt)
 
-        with st.spinner("Calling Groq..."):
+        with st.spinner("Thinking..."):
             history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat[:-1]]
             ans = ai(SYS_PROMPT, prompt, history)
 
