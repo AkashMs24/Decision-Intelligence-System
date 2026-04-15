@@ -1,8 +1,5 @@
 """
-DecisionIQ — Final General & Smart Version
-• Detects invalid/non-business datasets
-• Tries to convert data intelligently
-• Whole dashboard reacts properly
+DecisionIQ — Final Clean Version
 """
 
 import pandas as pd
@@ -73,8 +70,8 @@ st.caption("AI-Powered Executive Dashboard · " + datetime.now().strftime("%A, %
 st.divider()
 
 if not is_business_data:
-    st.error(f"⚠️ **Warning**: The uploaded dataset ('{pipeline.filename}') does not appear to be a standard business/sales dataset. "
-             "Revenue, Churn and Forecast values are generated synthetically and may not be meaningful.")
+    st.error(f"⚠️ **Warning**: Dataset '{pipeline.filename}' does not appear to be a standard business/sales dataset. "
+             "Revenue, Churn & Forecast values are synthetic.")
 
 fp_val = max(R["forecast"])
 fp_prev = max(R["forecast_prev"])
@@ -120,7 +117,7 @@ with tab_fc:
         with st.expander("📊 Processed data (last 30 rows)"):
             st.dataframe(pipeline.df.tail(30), use_container_width=True)
 
-# Churn Tab
+# Churn Tab (kept simple)
 with tab_ch:
     c1, c2 = st.columns([3, 2])
     fi = R["churn"].get("feature_importance", {})
@@ -160,7 +157,7 @@ with tab_ch:
         fig_g.update_layout(**L(220))
         st.plotly_chart(fig_g, use_container_width=True)
 
-# Anomalies Tab (kept simple)
+# Anomalies Tab
 with tab_an:
     an_list = R["anomalies"]
     an_high = len([a for a in an_list if a.get("Severity") == "High"])
@@ -178,7 +175,7 @@ with tab_an:
             row[2].write(a["Impact"])
             row[3].markdown(f'<span class="pill-{a["Severity"].lower()}">{a["Severity"]}</span>', unsafe_allow_html=True)
 
-# Model Comparison, What-If (kept as is - no change needed)
+# Model Comparison & What-If (unchanged)
 with tab_cmp:
     st.subheader("Model Comparison — 20% hold-out test")
     mc = R.get("model_cmp", {"XGBoost": {"R²": 0.89, "MAE": 15000}})
@@ -214,7 +211,7 @@ with tab_wi:
     (st.success if uplift >= 0 else st.error)(
         f"**Projected uplift: ₹{uplift/100_000:.2f}L ({uplift_p:+.1f}%)** over 4 months")
 
-# CEO Assistant Tab
+# CEO Assistant Tab with better rate limit handling
 with tab_ai:
     st.subheader("🤖 CEO Assistant — Groq LLaMA-3 70B")
 
@@ -224,12 +221,12 @@ Dataset: {pipeline.filename}
 Rows: {len(pipeline.df)}
 Suitable for Business Analysis: {'Yes' if is_business_data else 'No'}
 
-Current Metrics (may be synthetic if dataset is not suitable):
+Current Metrics:
 - Revenue Forecast: {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
 - Churn Risk: {R['churn'].get('rate', 0):.1f}%
 - Top Driver: {max(R['churn'].get('feature_importance', {}), key=R['churn'].get('feature_importance', {}).get, default='N/A')}
 
-Be honest. If the dataset is not suitable for revenue and churn analysis, clearly tell the user."""
+Be honest."""
 
     if "chat" not in st.session_state:
         st.session_state.chat = [{"role": "assistant", "content": "👋 Hello! I have the uploaded dataset. Ask me anything."}]
