@@ -9,20 +9,15 @@ def _add_ts_feats(df: pd.DataFrame) -> pd.DataFrame:
     df["t2"] = df["t"] ** 2
     df["month"] = pd.to_datetime(df["date"]).dt.month
     df["dow"] = pd.to_datetime(df["date"]).dt.dayofweek
-
-    # Safe lag and rolling features
+    
     if "revenue" in df.columns:
         df["lag1"] = df["revenue"].shift(1).bfill()
         df["lag7"] = df["revenue"].shift(7).bfill()
         df["roll7"] = df["revenue"].rolling(7, min_periods=1).mean()
         df["roll30"] = df["revenue"].rolling(30, min_periods=1).mean()
     else:
-        df["revenue"] = 50000  # fallback
-        df["lag1"] = 50000
-        df["lag7"] = 50000
-        df["roll7"] = 50000
-        df["roll30"] = 50000
-
+        df["revenue"] = 50000
+        df["lag1"] = df["lag7"] = df["roll7"] = df["roll30"] = 50000
     return df
 
 def forecast_revenue(df: pd.DataFrame) -> dict:
@@ -30,9 +25,9 @@ def forecast_revenue(df: pd.DataFrame) -> dict:
     FEAT = ["t", "t2", "month", "dow", "lag1", "lag7", "roll7", "roll30"]
     X = df[FEAT].values
     y = df["revenue"].values
-
+    
     sp = max(int(len(df) * 0.8), 1)
-
+    
     try:
         from xgboost import XGBRegressor
         mdl = XGBRegressor(n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42, verbosity=0)
@@ -41,12 +36,11 @@ def forecast_revenue(df: pd.DataFrame) -> dict:
         from sklearn.ensemble import RandomForestRegressor
         mdl = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
         model_name = "Random Forest"
-
+    
     mdl.fit(X[:sp], y[:sp])
-
     resid = y - mdl.predict(X)
     std = float(np.std(resid)) if len(resid) > 0 else 10000
-
+    
     # 4-month forecast
     preds = []
     last_t = int(df["t"].iloc[-1])
@@ -54,7 +48,7 @@ def forecast_revenue(df: pd.DataFrame) -> dict:
     lag1 = float(df["revenue"].iloc[-1])
     lag7 = float(df["revenue"].iloc[-7]) if len(df) > 7 else lag1
     roll7 = float(df["revenue"].iloc[-7:].mean()) if len(df) > 7 else lag1
-
+    
     for i in range(4):
         tv = last_t + (i + 1) * 30
         mo = (last_date + pd.DateOffset(months=i + 1)).month
@@ -65,11 +59,10 @@ def forecast_revenue(df: pd.DataFrame) -> dict:
         lag7 = lag1
         lag1 = p
         roll7 = float(np.mean([lag1] + preds[-6:])) if preds else p
-
+    
     forecast_prev = [max(p * 0.86, 0) for p in preds]
-
     r2 = float(r2_score(y[sp:], mdl.predict(X[sp:]))) if sp < len(y) else 0.5
-
+    
     return {
         "forecast": preds,
         "forecast_prev": forecast_prev,
