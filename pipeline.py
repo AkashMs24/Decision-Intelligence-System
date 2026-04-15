@@ -21,18 +21,18 @@ class DecisionIQPipeline:
         fc = forecast_revenue(self.df)
         ch = churn_analysis(self.df)
         an = detect_anomalies(self.df)
-
-        top = max(ch["feature_importance"], key=ch["feature_importance"].get)
-
+        
+        top = max(ch.get("feature_importance", {}), key=ch.get("feature_importance", {}).get, default="N/A")
+        
         insights = ai(
-            system_prompt="You are a senior business analyst. Be honest about data quality.",
+            system_prompt="You are a senior business analyst. Be concise, honest about data quality, and highlight key opportunities/risks.",
             user_prompt=f"Dataset: {self.filename}\n"
                         f"Business Suitable: {'Yes' if self.df.attrs.get('is_business_like', False) else 'No'}\n"
                         f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
                         f"Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
                         f"Anomalies: {len(an)}"
         )
-
+        
         return {
             "forecast": fc["forecast"],
             "forecast_prev": fc["forecast_prev"],
