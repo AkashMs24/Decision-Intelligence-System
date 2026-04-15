@@ -7,12 +7,12 @@ def transform_user_data(raw: pd.DataFrame, filename: str = "Unknown") -> pd.Data
     original_columns = list(raw.columns)
     df.columns = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
 
-    # Business detection - improved for sample_data.csv
+    # Business detection
     business_keywords = ["revenue", "sales", "amount", "price", "income", "spending", "purchase", "order", "fare", "total"]
     is_business_like = any(any(k in col for k in business_keywords) for col in df.columns)
 
     # Force sample_data.csv to be treated as business data
-    if "sample_data" in filename.lower() or any(col in df.columns for col in ["revenue", "sales", "amount"]):
+    if "sample_data" in filename.lower():
         is_business_like = True
 
     date_col = next((c for c in df.columns if any(k in c for k in ["date", "time", "day", "month", "invoice"])), None)
