@@ -1,3 +1,4 @@
+# pipeline.py
 import pandas as pd
 from utils.data_loader import load_data
 from utils.data_preprocessor import transform_user_data
@@ -23,17 +24,13 @@ class DecisionIQPipeline:
 
         top = max(ch["feature_importance"], key=ch["feature_importance"].get)
 
-        dataset_info = (f"Dataset: {self.filename}\n"
-                        f"Rows: {len(self.df)}\n"
-                        f"Original Columns: {self.df.attrs.get('original_columns', [])}")
-
         insights = ai(
             system_prompt="You are a senior business analyst. Be honest about data quality.",
-            user_prompt=f"{dataset_info}\n\n"
+            user_prompt=f"Dataset: {self.filename}\n"
+                        f"Business Suitable: {'Yes' if self.df.attrs.get('is_business_like', False) else 'No'}\n"
                         f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
-                        f"Current Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
-                        f"Anomalies: {len(an)}\n"
-                        f"Last revenue: ₹{self.df['revenue'].iloc[-1]/100000:.1f}L"
+                        f"Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
+                        f"Anomalies: {len(an)}"
         )
 
         return {
@@ -48,5 +45,4 @@ class DecisionIQPipeline:
             "insights": insights,
             "customers": int(self.df["customers"].iloc[-1]),
             "customers_prev": int(self.df["customers"].iloc[-30]) if len(self.df) > 30 else int(self.df["customers"].iloc[0]),
-            "dataset_info": dataset_info
         }
