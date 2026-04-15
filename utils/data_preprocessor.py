@@ -7,27 +7,30 @@ def transform_user_data(raw: pd.DataFrame, filename: str = "Unknown") -> pd.Data
     original_columns = list(raw.columns)
     df.columns = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
 
-    # Detect if this is a business dataset
-    business_keywords = ["revenue", "sales", "amount", "price", "income", "spending", "purchase", "order", "fare", "profit"]
+    # Business-like detection
+    business_keywords = ["revenue", "sales", "amount", "price", "income", "spending", "purchase", "order", "fare", "total"]
     is_business_like = any(any(k in col for k in business_keywords) for col in df.columns)
 
-    date_col = next((c for c in df.columns if any(k in c for k in ["date", "time", "day", "month", "invoice"])), None)
+    date_col = next((c for c in df.columns if any(k in c for k in ["date", "time", "day", "month", "invoice", "period"])), None)
     rev_col = next((c for c in df.columns if any(k in c for k in business_keywords)), None)
 
-    # Special handling for Titanic-like datasets
+    # Smart conversion logic
     if "survived" in df.columns or "titanic" in filename.lower() or not is_business_like:
+        # Non-business dataset (Titanic, Iris, etc.)
         df.attrs['dataset_type'] = "non_business"
-        df["revenue"] = np.random.uniform(5000, 80000, len(df))   # synthetic only
-        df["customers"] = np.random.randint(80, 400, len(df))
+        df["revenue"] = np.random.uniform(8000, 90000, len(df))   # synthetic but reasonable
+        df["customers"] = np.random.randint(50, 350, len(df))
         df.attrs['is_business_like'] = False
     elif rev_col:
+        # Real business dataset
         df["revenue"] = pd.to_numeric(df[rev_col], errors="coerce").fillna(0)
-        df["customers"] = np.random.randint(80, 400, len(df))
+        df["customers"] = np.random.randint(50, 350, len(df))
         df.attrs['dataset_type'] = "business"
         df.attrs['is_business_like'] = True
     else:
+        # Generic fallback
         df["revenue"] = np.random.uniform(10000, 120000, len(df))
-        df["customers"] = np.random.randint(80, 400, len(df))
+        df["customers"] = np.random.randint(50, 350, len(df))
         df.attrs['dataset_type'] = "generic"
         df.attrs['is_business_like'] = False
 
