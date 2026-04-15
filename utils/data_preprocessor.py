@@ -1,55 +1,48 @@
-# utils/data_preprocessor.py
+# pipeline.py
 import pandas as pd
-import numpy as np
+from utils.data_loader import load_data
+from utils.data_preprocessor import transform_user_data
+from models.forecasting import forecast_revenue
+from models.churn import churn_analysis
+from models.anomaly import detect_anomalies
+from utils.llm_engine import ai
 
-def transform_user_data(raw: pd.DataFrame, filename: str = "Unknown") -> pd.DataFrame:
-    df = raw.copy()
-    original_columns = list(raw.columns)
-    df.columns = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
-
-    # Business detection
-    business_keywords = ["revenue", "sales", "amount", "price", "income", "spending", "purchase", "order", "fare", "total"]
-    is_business_like = any(any(k in col for k in business_keywords) for col in df.columns)
-
-    # Force sample_data.csv to be business data
-    if "sample_data" in filename.lower():
-        is_business_like = True
-
-    date_col = next((c for c in df.columns if any(k in c for k in ["date", "time", "day", "month", "invoice"])), None)
-    rev_col = next((c for c in df.columns if any(k in c for k in business_keywords)), None)
-
-    if "titanic" in filename.lower() or "survived" in df.columns:
-        df.attrs['dataset_type'] = "non_business"
-        if "fare" in df.columns:
-            df["revenue"] = pd.to_numeric(df["fare"], errors="coerce").fillna(50) * 10
+class DecisionIQPipeline:
+    def __init__(self, uploaded_file=None):
+        if uploaded_file is not None:
+            self.filename = uploaded_file.name
+            raw = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
+            self.df = transform_user_data(raw, self.filename)
         else:
-            df["revenue"] = np.random.uniform(8000, 90000, len(df))
-        df["customers"] = np.random.randint(80, 400, len(df))
-        df.attrs['is_business_like'] = False
-    elif rev_col or is_business_like:
-        df["revenue"] = pd.to_numeric(df.get(rev_col, 50000), errors="coerce").fillna(50000)
-        df["customers"] = np.random.randint(80, 400, len(df))
-        df.attrs['dataset_type'] = "business"
-        df.attrs['is_business_like'] = True
-    else:
-        df["revenue"] = np.random.uniform(10000, 120000, len(df))
-        df["customers"] = np.random.randint(80, 400, len(df))
-        df.attrs['dataset_type'] = "generic"
-        df.attrs['is_business_like'] = False
+            self.df = load_data()
+            self.filename = "sample_data.csv"
 
-    if date_col:
-        df["date"] = pd.to_datetime(df[date_col], errors='coerce').dt.date
-    else:
-        df["date"] = pd.date_range(start="2023-01-01", periods=len(df)).date
+    def run(self):
+        fc = forecast_revenue(self.df)
+        ch = churn_analysis(self.df)
+        an = detect_anomalies(self.df)
 
-    df["marketing_spend"] = df["revenue"] * 0.20
-    df["churn"] = (df["customers"].pct_change() < 0).astype(int).fillna(0)
+        top = max(ch["feature_importance"], key=ch["feature_importance"].get)
 
-    final_df = df[["date", "revenue", "customers", "marketing_spend", "churn"]].reset_index(drop=True)
+        insights = ai(
+            system_prompt="You are a senior business analyst. Be honest about data quality.",
+            user_prompt=f"Dataset: {self.filename}\n"
+                        f"Business Suitable: {'Yes' if self.df.attrs.get('is_business_like', False) else 'No'}\n"
+                        f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
+                        f"Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
+                        f"Anomalies: {len(an)}"
+        )
 
-    final_df.attrs['filename'] = filename
-    final_df.attrs['num_rows'] = len(final_df)
-    final_df.attrs['original_columns'] = original_columns
-    final_df.attrs['is_business_like'] = is_business_like
-
-    return final_df
+        return {
+            "forecast": fc["forecast"],
+            "forecast_prev": fc["forecast_prev"],
+            "upper": fc["upper"],
+            "lower": fc["lower"],
+            "forecast_r2": fc["r2"],
+            "forecast_model": fc["model"],
+            "churn": ch,
+            "anomalies": an,
+            "insights": insights,
+            "customers": int(self.df["customers"].iloc[-1]),
+            "customers_prev": int(self.df["customers"].iloc[-30]) if len(self.df) > 30 else int(self.df["customers"].iloc[0]),
+        }
