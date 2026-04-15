@@ -7,28 +7,28 @@ def transform_user_data(raw: pd.DataFrame, filename: str = "Unknown") -> pd.Data
     original_columns = list(raw.columns)
     df.columns = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
 
-    # Improved business detection
-    business_keywords = ["revenue", "sales", "amount", "price", "income", "spending", "purchase", "order", "fare", "total"]
+    # Strict business detection
+    business_keywords = ["revenue", "sales", "amount", "price", "income", "spending", "purchase", "order", "total"]
     is_business_like = any(any(k in col for k in business_keywords) for col in df.columns)
 
-    # Special case for your default sample_data.csv
-    if "sample_data" in filename.lower() or any(col in ["revenue", "sales", "amount"] for col in df.columns):
-        is_business_like = True
+    # Force non-business for Titanic
+    if "titanic" in filename.lower() or "survived" in df.columns:
+        is_business_like = False
 
     date_col = next((c for c in df.columns if any(k in c for k in ["date", "time", "day", "month", "invoice"])), None)
     rev_col = next((c for c in df.columns if any(k in c for k in business_keywords)), None)
 
-    if "survived" in df.columns or "titanic" in filename.lower():
+    if not is_business_like:
         df.attrs['dataset_type'] = "non_business"
-        # Try to convert Titanic data intelligently
+        # Try to use 'fare' as revenue proxy for Titanic
         if "fare" in df.columns:
             df["revenue"] = pd.to_numeric(df["fare"], errors="coerce").fillna(50) * 10
         else:
             df["revenue"] = np.random.uniform(8000, 90000, len(df))
         df["customers"] = np.random.randint(80, 400, len(df))
         df.attrs['is_business_like'] = False
-    elif rev_col or is_business_like:
-        df["revenue"] = pd.to_numeric(df.get(rev_col, 50000), errors="coerce").fillna(50000)
+    elif rev_col:
+        df["revenue"] = pd.to_numeric(df[rev_col], errors="coerce").fillna(0)
         df["customers"] = np.random.randint(80, 400, len(df))
         df.attrs['dataset_type'] = "business"
         df.attrs['is_business_like'] = True
