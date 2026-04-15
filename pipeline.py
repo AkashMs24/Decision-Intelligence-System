@@ -1,4 +1,3 @@
-# pipeline.py
 import pandas as pd
 from utils.data_loader import load_data
 from utils.data_preprocessor import transform_user_data
@@ -10,12 +9,12 @@ from utils.llm_engine import ai
 class DecisionIQPipeline:
     def __init__(self, uploaded_file=None):
         if uploaded_file is not None:
-            filename = uploaded_file.name
+            self.filename = uploaded_file.name
             raw = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
-            self.df = transform_user_data(raw, filename)
+            self.df = transform_user_data(raw, self.filename)
         else:
             self.df = load_data()
-            self.df.attrs['filename'] = "sample_data.csv"
+            self.filename = "sample_data.csv"
 
     def run(self):
         fc = forecast_revenue(self.df)
@@ -24,16 +23,17 @@ class DecisionIQPipeline:
 
         top = max(ch["feature_importance"], key=ch["feature_importance"].get)
 
-        # Rich context for LLM
-        dataset_info = f"Dataset: {self.df.attrs.get('filename', 'Unknown')}, Rows: {self.df.attrs.get('num_rows', 0)}, Columns: {self.df.attrs.get('columns', [])}"
+        dataset_info = (f"Dataset: {self.filename}\n"
+                        f"Rows: {len(self.df)}\n"
+                        f"Original Columns: {self.df.attrs.get('original_columns', [])}")
 
         insights = ai(
-            system_prompt="You are a senior business analyst presenting to the CEO. Be sharp, honest, and specific.",
+            system_prompt="You are a senior business analyst. Be honest about data quality.",
             user_prompt=f"{dataset_info}\n\n"
                         f"Forecast (4 mo): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}\n"
-                        f"Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
+                        f"Current Churn: {ch['rate']:.1f}% | Top driver: {top}\n"
                         f"Anomalies: {len(an)}\n"
-                        f"Revenue stats - Mean: ₹{self.df['revenue'].mean()/100000:.1f}L, Last: ₹{self.df['revenue'].iloc[-1]/100000:.1f}L"
+                        f"Last revenue: ₹{self.df['revenue'].iloc[-1]/100000:.1f}L"
         )
 
         return {
