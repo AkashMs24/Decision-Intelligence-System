@@ -1,8 +1,8 @@
 """
-DecisionIQ — Final Accurate Version
-• Reacts properly to any uploaded dataset
-• Honest warnings for non-business data (Titanic, etc.)
-• Clean UI as per your original design
+DecisionIQ — Final General & Smart Version
+• Detects invalid/non-business datasets
+• Tries to convert data intelligently
+• Whole dashboard reacts properly
 """
 
 import pandas as pd
@@ -73,8 +73,8 @@ st.caption("AI-Powered Executive Dashboard · " + datetime.now().strftime("%A, %
 st.divider()
 
 if not is_business_data:
-    st.error(f"⚠️ **This dataset ({pipeline.filename}) is NOT a typical business dataset.** "
-             "Revenue, Churn & Forecast values shown are **synthetic** and may not be meaningful.")
+    st.error(f"⚠️ **Warning**: The uploaded dataset ('{pipeline.filename}') does not appear to be a standard business/sales dataset. "
+             "Revenue, Churn and Forecast values are generated synthetically and may not be meaningful.")
 
 fp_val = max(R["forecast"])
 fp_prev = max(R["forecast_prev"])
@@ -97,7 +97,7 @@ tab_fc, tab_ch, tab_an, tab_cmp, tab_wi, tab_ai = st.tabs([
     "📊 Model Comparison", "🔮 What-If", "🤖 CEO Assistant"
 ])
 
-# ── FORECAST TAB ─────────────────────────────────────────────────────────────
+# Forecast Tab
 with tab_fc:
     c1, c2 = st.columns([3, 2])
     with c1:
@@ -120,7 +120,7 @@ with tab_fc:
         with st.expander("📊 Processed data (last 30 rows)"):
             st.dataframe(pipeline.df.tail(30), use_container_width=True)
 
-# ── CHURN TAB ───────────────────────────────────────────────────────────────
+# Churn Tab
 with tab_ch:
     c1, c2 = st.columns([3, 2])
     fi = R["churn"].get("feature_importance", {})
@@ -160,7 +160,7 @@ with tab_ch:
         fig_g.update_layout(**L(220))
         st.plotly_chart(fig_g, use_container_width=True)
 
-# ── ANOMALIES TAB ───────────────────────────────────────────────────────────
+# Anomalies Tab (kept simple)
 with tab_an:
     an_list = R["anomalies"]
     an_high = len([a for a in an_list if a.get("Severity") == "High"])
@@ -178,7 +178,7 @@ with tab_an:
             row[2].write(a["Impact"])
             row[3].markdown(f'<span class="pill-{a["Severity"].lower()}">{a["Severity"]}</span>', unsafe_allow_html=True)
 
-# ── MODEL COMPARISON TAB ─────────────────────────────────────────────────────
+# Model Comparison, What-If (kept as is - no change needed)
 with tab_cmp:
     st.subheader("Model Comparison — 20% hold-out test")
     mc = R.get("model_cmp", {"XGBoost": {"R²": 0.89, "MAE": 15000}})
@@ -196,7 +196,6 @@ with tab_cmp:
         fig.update_layout(**L(280, title="MAE — lower is better"))
         st.plotly_chart(fig, use_container_width=True)
 
-# ── WHAT-IF TAB ─────────────────────────────────────────────────────────────
 with tab_wi:
     st.subheader("🔮 What-If Revenue Simulator")
     wc1, wc2, wc3 = st.columns(3)
@@ -215,7 +214,7 @@ with tab_wi:
     (st.success if uplift >= 0 else st.error)(
         f"**Projected uplift: ₹{uplift/100_000:.2f}L ({uplift_p:+.1f}%)** over 4 months")
 
-# ── CEO ASSISTANT TAB (Honest) ─────────────────────────────────────────────
+# CEO Assistant Tab
 with tab_ai:
     st.subheader("🤖 CEO Assistant — Groq LLaMA-3 70B")
 
@@ -223,14 +222,14 @@ with tab_ai:
 
 Dataset: {pipeline.filename}
 Rows: {len(pipeline.df)}
-Suitable for Business Analysis: {'Yes' if is_business_data else 'No - This is not a revenue/churn dataset (e.g. Titanic)'}
+Suitable for Business Analysis: {'Yes' if is_business_data else 'No'}
 
-Current Metrics (may be synthetic):
+Current Metrics (may be synthetic if dataset is not suitable):
 - Revenue Forecast: {[f'₹{v/100000:.1f}L' for v in R.get('forecast', [])]}
 - Churn Risk: {R['churn'].get('rate', 0):.1f}%
 - Top Driver: {max(R['churn'].get('feature_importance', {}), key=R['churn'].get('feature_importance', {}).get, default='N/A')}
 
-Be honest. Clearly state if the dataset is not suitable for business revenue analysis."""
+Be honest. If the dataset is not suitable for revenue and churn analysis, clearly tell the user."""
 
     if "chat" not in st.session_state:
         st.session_state.chat = [{"role": "assistant", "content": "👋 Hello! I have the uploaded dataset. Ask me anything."}]
