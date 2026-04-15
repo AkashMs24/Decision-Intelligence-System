@@ -1,6 +1,10 @@
 # pipeline.py
+"""
+DecisionIQ — central pipeline.
+Loads data → preprocesses → runs models → generates AI insights.
+"""
 import pandas as pd
-import numpy as np
+
 from utils.data_loader import load_data
 from utils.data_preprocessor import transform_user_data
 from models.forecasting import forecast_revenue
@@ -10,107 +14,81 @@ from utils.llm_engine import ai
 
 
 class DecisionIQPipeline:
+    """
+    Orchestrates data loading, transformation, and model execution.
+
+    Parameters
+    ----------
+    uploaded_file : file-like object | None
+        Streamlit UploadedFile. When None, loads the default sample CSV.
+    """
+
     def __init__(self, uploaded_file=None):
         if uploaded_file is not None:
             self.filename = uploaded_file.name
-            try:
-                raw = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
-                self.df = transform_user_data(raw, self.filename)
-            except Exception as e:
-                st.error(f"Error reading uploaded file: {e}")
-                # Fallback to sample data
-                self.df = load_data()
-                self.filename = "sample_data.csv"
+            raw = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
         else:
-            self.df = load_data()
             self.filename = "sample_data.csv"
+            raw = load_data("data/sample_data.csv")
 
-    def run(self):
-        # ====================== SAFETY CHECKS ======================
-        df = self.df.copy()
-        
-        # Ensure 'revenue' column exists (Critical fix for your sample data)
-        if "revenue" not in df.columns:
-            if "sales_amount" in df.columns:
-                df["revenue"] = pd.to_numeric(df["sales_amount"], errors="coerce").fillna(50000)
-            else:
-                df["revenue"] = 50000.0
-        
-        # Ensure other required columns
-        if "customers" not in df.columns:
-            df["customers"] = np.random.randint(80, 400, len(df))
-        
-        if "marketing_spend" not in df.columns:
-            df["marketing_spend"] = df["revenue"] * 0.20
-        
-        if "date" not in df.columns:
-            df["date"] = pd.date_range(start="2023-01-01", periods=len(df)).date
-        
-        # Update self.df with safe version
-        self.df = df[["date", "revenue", "customers", "marketing_spend", "churn"]].reset_index(drop=True) \
-                  if "churn" in df.columns else \
-                  df[["date", "revenue", "customers", "marketing_spend"]].assign(churn=0).reset_index(drop=True)
+        self.df = transform_user_data(raw, self.filename)
 
-        # ====================== RUN MODELS ======================
-        try:
-            fc = forecast_revenue(self.df)
-        except Exception as e:
-            st.warning(f"Forecasting failed: {e}. Using fallback.")
-            fc = {
-                "forecast": [55000] * 4,
-                "forecast_prev": [47000] * 4,
-                "upper": [65000] * 4,
-                "lower": [45000] * 4,
-                "r2": 0.5,
-                "model": "Fallback"
-            }
+    # ── Public API ─────────────────────────────────────────────────────────────
 
-        try:
-            ch = churn_analysis(self.df)
-        except Exception as e:
-            st.warning(f"Churn analysis failed: {e}. Using fallback.")
-            ch = {
-                "rate": 12.5,
-                "rate_prev": 11.1,
-                "feature_importance": {"Recent Revenue": 0.45, "Customer Trend": 0.35, "Marketing Efficiency": 0.20},
-                "accuracy": 0.82,
-                "auc": 0.85,
-                "cv_mean": 0.80,
-                "cv_std": 0.06,
-                "confusion_matrix": [[150, 10], [10, 25]],
-                "model": "RandomForest"
-            }
+    def run(self) -> dict:
+        """Execute all models and return a results dict for the dashboard."""
+        fc = forecast_revenue(self.df)
+        ch = churn_analysis(self.df)
+        an = detect_anomalies(self.df)
 
-        try:
-            an = detect_anomalies(self.df)
-        except Exception:
-            an = []
-
-        # Get top feature
-        feature_imp = ch.get("feature_importance", {})
-        top = max(feature_imp, key=feature_imp.get) if feature_imp else "N/A"
-
-        # Generate AI Insights
-        insights = ai(
-            system_prompt="You are a senior business analyst. Be honest about data quality and give actionable insights.",
-            user_prompt=f"""Dataset: {self.filename}
-Business Suitable: {'Yes' if self.df.attrs.get('is_business_like', False) else 'No'}
-Forecast (4 months): {[f'₹{v/100000:.1f}L' for v in fc['forecast']]}
-Churn Rate: {ch.get('rate', 0):.1f}% | Top Driver: {top}
-Anomalies Detected: {len(an)}"""
+        is_biz = self.df.attrs.get("is_business_like", False)
+        top_driver = (
+            max(ch["feature_importance"], key=ch["feature_importance"].get)
+            if ch["feature_importance"]
+            else "N/A"
         )
 
-        # Final result dictionary
+        # ── AI narrative insights ──────────────────────────────────────────────
+        system_prompt = (
+            "You are a senior business analyst and a friendly executive advisor. "
+            "Be concise, honest, and data-driven. "
+            "If the dataset is not business-suitable, say so clearly and briefly."
+        )
+        user_prompt = (
+            f"Dataset: {self.filename} | Rows: {len(self.df)} | "
+            f"Business Suitable: {'Yes' if is_biz else 'No'}\n"
+            f"4-month Revenue Forecast: {[f'₹{v / 100_000:.1f}L' for v in fc['forecast']]}\n"
+            f"Churn Rate: {ch['rate']:.1f}% | Top Driver: {top_driver}\n"
+            f"Anomalies Detected: {len(an)} "
+            f"(High: {sum(1 for a in an if a.get('Severity') == 'High')})\n"
+            f"Forecast Model R²: {fc['r2']:.3f}\n\n"
+            "Give 3-4 sharp bullet-point insights with actionable recommendations."
+        )
+        insights = ai(system_prompt, user_prompt)
+
+        # ── Customer trend (vs 30 days ago) ───────────────────────────────────
+        cust_now  = int(self.df["customers"].iloc[-1])
+        cust_prev = (
+            int(self.df["customers"].iloc[-31])
+            if len(self.df) > 31
+            else int(self.df["customers"].iloc[0])
+        )
+
         return {
-            "forecast": fc["forecast"],
-            "forecast_prev": fc["forecast_prev"],
-            "upper": fc["upper"],
-            "lower": fc["lower"],
-            "forecast_r2": fc["r2"],
+            # Forecast
+            "forecast":       fc["forecast"],
+            "forecast_prev":  fc["forecast_prev"],
+            "upper":          fc["upper"],
+            "lower":          fc["lower"],
+            "forecast_r2":    fc["r2"],
             "forecast_model": fc["model"],
+            # Churn
             "churn": ch,
+            # Anomalies
             "anomalies": an,
+            # AI
             "insights": insights,
-            "customers": int(self.df["customers"].iloc[-1]),
-            "customers_prev": int(self.df["customers"].iloc[-30]) if len(self.df) > 30 else int(self.df["customers"].iloc[0]),
+            # Customers
+            "customers":      cust_now,
+            "customers_prev": cust_prev,
         }
