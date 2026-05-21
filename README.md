@@ -1,153 +1,101 @@
-# 🧠 Decision Intelligence System
+<div align="center">
 
-### AI-Powered Executive Dashboard for Real-Time Business Decisions
+# Decision Intelligence System
 
-🔗 **Live App:** https://decision-intelligence-system.streamlit.app/
+> Most dashboards tell you what happened.
+> This one tells you what to do next.
 
----
+[![Live App](https://img.shields.io/badge/Live%20App-Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://decision-intelligence-system.streamlit.app/)
+![ML](https://img.shields.io/badge/ML-XGBoost%20%7C%20RandomForest%20%7C%20IsolationForest-blue?style=flat-square)
+![LLM](https://img.shields.io/badge/LLM-Groq%20LLaMA--3%2070B-purple?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.9+-blue?style=flat-square)
 
-## 🚀 Overview
+</div>
 
-**Decision Intelligence System** is an end-to-end AI-powered platform that transforms raw business data into **actionable executive insights**.
+## What this system does
 
-Unlike traditional dashboards that only describe *what happened*, this system focuses on **what to do next** using machine learning and AI. ([Qualtrics][1])
+Upload any business CSV. The system automatically:
 
-It enables decision-makers to:
+- **Forecasts revenue** — XGBoost time-series model with confidence intervals
+- **Predicts churn** — Random Forest + cross-validation with feature importance
+- **Detects anomalies** — Isolation Forest flags unusual patterns with severity scoring
+- **Generates executive insights** — Groq LLaMA-3 70B converts model outputs into plain business decisions
+- **Simulates scenarios** — What-If analysis for marketing spend, churn reduction, customer growth
 
-* Forecast future revenue 📈
-* Predict customer churn 🔁
-* Detect anomalies in business trends 🚨
-* Generate AI-driven strategic insights 🤖
-* Simulate business scenarios using What-If analysis 🔮
-
----
-
-## 🧠 Key Features
-
-### 📊 Real-Time Data Processing
-
-* Upload any business CSV
-* Automatic data standardization
-* Fully dynamic outputs (no static values)
+No hardcoded values. Every output is driven by the data you upload.
 
 ---
 
-### 📈 Revenue Forecasting
+## Why this is different from a regular dashboard
 
-* Model: **XGBoost**
-* Time-series feature engineering
-* Confidence intervals (±1.5σ)
-* Performance metric: **R² Score**
-
----
-
-### 🔁 Churn Prediction
-
-* Model: **Random Forest + Cross Validation**
-* Metrics:
-
-  * Accuracy
-  * AUC-ROC
-  * CV Score
-* Feature importance for explainability
+| Regular dashboard | Decision Intelligence System |
+|---|---|
+| Shows what happened | Predicts what will happen |
+| Static charts | Dynamic ML outputs |
+| Analyst interprets | LLM generates recommendations |
+| One dataset view | What-If scenario simulation |
 
 ---
 
-### 🚨 Anomaly Detection
-
-* Model: **Isolation Forest**
-* Detects unusual business patterns
-* Severity classification (High / Medium / Low)
-
----
-
-### 🤖 AI Executive Insights (LLM)
-
-* Powered by **Groq LLaMA-3 70B**
-* Converts model outputs → business decisions
-* Context-aware recommendations
-
----
-
-### 🔮 What-If Simulation
-
-* Simulate:
-
-  * Marketing spend changes
-  * Churn reduction
-  * Customer growth
-* Predict revenue impact instantly
-
----
-
-### 📊 Model Comparison Dashboard
-
-* Compare:
-
-  * Linear Regression
-  * Random Forest
-  * XGBoost
-* Metrics: R², MAE
-
----
-
-### 🤖 CEO Assistant (AI Chat)
-
-* Ask questions like:
-
-  * "Why is churn increasing?"
-  * "How to increase revenue?"
-* AI responds using **live data context**
-
----
-
-## 🏗️ System Architecture
-
-```
-User Data (CSV)
-      ↓
-Data Preprocessing (Auto-detect columns)
-      ↓
+## System architecture
+CSV Upload
+↓
+Auto data preprocessing (column detection, standardization)
+↓
 ML Pipeline
- ├── Forecast (XGBoost)
- ├── Churn (RandomForest)
- ├── Anomaly (IsolationForest)
-      ↓
-LLM Layer (Groq API)
-      ↓
-Executive Insights
-      ↓
-Streamlit Dashboard (UI)
-```
+├── Revenue Forecast     → XGBoost + confidence intervals (±1.5σ)
+├── Churn Prediction     → Random Forest + AUC-ROC + CV Score
+└── Anomaly Detection    → Isolation Forest (High / Medium / Low severity)
+↓
+LLM Layer (Groq LLaMA-3 70B)
+↓
+Executive insights + CEO Assistant chatbot
+↓
+Streamlit Dashboard
 
 ---
 
-## ⚙️ Tech Stack
+## Features
 
-| Category        | Tools                                  |
-| --------------- | -------------------------------------- |
-| Frontend        | Streamlit                              |
-| ML Models       | XGBoost, RandomForest, IsolationForest |
-| Data            | Pandas, NumPy                          |
-| Visualization   | Plotly                                 |
-| AI/LLM          | Groq (LLaMA-3)                         |
-| Deployment      | Streamlit Cloud                        |
-| Version Control | GitHub                                 |
+**ML models**
+- Revenue forecasting with R² score and confidence bands
+- Churn prediction with accuracy, AUC-ROC, CV score, and feature importance
+- Anomaly detection with severity classification
+- Model comparison dashboard — Linear Regression vs Random Forest vs XGBoost
+
+**LLM layer**
+- AI executive insights: converts model outputs into business-language decisions
+- CEO Assistant chatbot: ask "Why is churn increasing?" and get answers using live data context
+
+**Scenario simulation**
+- Adjust marketing spend, churn rate, or customer growth
+- Instantly see projected revenue impact
 
 ---
 
-## 📦 Installation
+## Model performance
+
+| Model | Task | Metric |
+|---|---|---|
+| XGBoost | Revenue forecasting | R² Score |
+| Random Forest | Churn prediction | Accuracy + AUC-ROC + CV |
+| Isolation Forest | Anomaly detection | Severity classification |
+
+---
+
+## Stack
+
+`Python` `Streamlit` `XGBoost` `scikit-learn` `Pandas` `NumPy` `Plotly` `Groq API (LLaMA-3 70B)`
+
+---
+
+## Run locally
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Decision-Intelligence-System.git
-cd Decision-Intelligence-System
+git clone https://github.com/AkashMs24/Decisioniq-ai-business-intelligence.git
+cd Decisioniq-ai-business-intelligence
 pip install -r requirements.txt
-streamlit run app.py
 ```
-
----
-
-## 🔐 Environment Setup
 
 Create a `.env` file:
 
@@ -155,69 +103,39 @@ Create a `.env` file:
 GROQ_API_KEY=your_api_key_here
 ```
 
----
+Then run:
 
-## 📊 How It Works
-
-Decision Intelligence combines:
-
-* Data
-* Machine Learning
-* AI
-
-to optimize decision-making and reduce uncertainty in business environments. ([ThoughtSpot][2])
-
-Instead of static dashboards, this system:
-
-* Predicts outcomes
-* Simulates scenarios
-* Recommends actions
+```bash
+streamlit run app.py
+```
 
 ---
 
-## 🎯 Use Cases
+## Use cases
 
-* Business Analytics
-* Startup Decision Support
-* Marketing Optimization
-* Customer Retention Strategy
-* Financial Forecasting
-
----
-
-## 📈 Future Improvements
-
-* Deep Learning (LSTM forecasting)
-* Real-time API integration
-* Multi-dataset support
-* User authentication system
+- Startup founders who need data-driven decisions without a data team
+- Marketing teams optimising spend and retention
+- Business analysts replacing static reports with live ML outputs
+- Finance teams forecasting revenue with uncertainty ranges
 
 ---
 
-## 👨‍💻 Author
+## What's next
 
-**Akash M S**
-B.Tech Data Science
-
----
-
-## ⭐ Why This Project Stands Out
-
-* End-to-end AI system (not just dashboard)
-* Real-time data-driven decisions
-* Combines ML + LLM (modern stack)
-* Business-focused, not just technical
+- LSTM for deep learning time-series forecasting
+- Real-time API data integration (no CSV upload needed)
+- Multi-dataset support
+- User authentication
 
 ---
 
-## 📌 Final Note
+## Related projects
 
-This project demonstrates how **Decision Intelligence systems bridge the gap between data and action**, turning analytics into real-world business impact. ([Kairntech][3])
+- [Fraud Detection System](https://github.com/AkashMs24/Cost-Sensitive-Real-Time-Fraud-Detection-Decision-System) — XGBoost + SHAP + FastAPI
+- [FarmVoice AI](https://github.com/AkashMs24/FarmVoice-AI) — NLP + Random Forest + SHAP for farmers
+- [Employee Attrition XAI](https://github.com/AkashMs24/Employee-Attrition-Risk-Assessment-Using-Explainable-Machine-Learning)
 
 ---
 
-⭐ If you like this project, consider giving it a star!
-
-[1]: https://www.qualtrics.com/articles/strategy-research/decision-intelligence/?utm_source=chatgpt.com "The Ultimate Guide to Decision Intelligence (DI)"
-[2]: https://www.thoughtspot.com/data-trends/ai/decision-intelligence?utm_source=chatgpt.com "What is Decision Intelligence? Top Examples and Benefits"
-[3]: https://kairntech.com/blog/articles/decision-intelligence-platforms-what-they-are-and-why-they-matter/?utm_source=chatgpt.com "Decision intelligence platforms: What they are and why ..."
+Built by **Akash M S** · Presidency University, Bengaluru  
+[LinkedIn](https://www.linkedin.com/in/akash-m-s-414a21297) · [GitHub](https://github.com/AkashMs24) · ms29akash@gmail.com
