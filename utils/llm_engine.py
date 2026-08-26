@@ -7,6 +7,13 @@ import os
 import time
 import streamlit as st
 
+# Model name — verified current as of Aug 2026.
+# llama-3.1-8b-instant and llama-3.3-70b-versatile were deprecated by Groq
+# (announced June 17, 2026). openai/gpt-oss-20b is their recommended
+# fast/cheap replacement. Override via GROQ_MODEL secret/env if Groq
+# retires this one too — check https://console.groq.com/docs/models.
+DEFAULT_MODEL = "openai/gpt-oss-20b"
+
 
 def _get_api_key() -> str | None:
     """Retrieve Groq API key from Streamlit Secrets or environment."""
@@ -14,6 +21,14 @@ def _get_api_key() -> str | None:
         return st.secrets["GROQ_API_KEY"]
     except Exception:
         return os.getenv("GROQ_API_KEY")
+
+
+def _get_model() -> str:
+    """Retrieve Groq model name from Streamlit Secrets or environment, with a safe default."""
+    try:
+        return st.secrets["GROQ_MODEL"]
+    except Exception:
+        return os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 
 
 def ai(
@@ -51,6 +66,8 @@ def ai(
             "Please add **GROQ_API_KEY** in your Streamlit Secrets (`.streamlit/secrets.toml`)."
         )
 
+    model = _get_model()
+
     messages = [{"role": "system", "content": system_prompt}]
     if history:
         # Keep only the last 10 turns to stay within context limits
@@ -61,19 +78,16 @@ def ai(
     while attempt <= retries:
         try:
             from groq import Groq
-
             client = Groq(api_key=api_key)
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",   # fast & generous rate limits
+                model=model,   # fast & generous rate limits
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=0.5,
             )
             return response.choices[0].message.content.strip()
-
         except Exception as exc:
             err = str(exc).lower()
-
             if "429" in err or "rate limit" in err:
                 if attempt < retries:
                     wait = 20 * (attempt + 1)   # 20 s, then 40 s
@@ -84,15 +98,16 @@ def ai(
                     "⚠️ Groq rate limit reached. "
                     "Please wait a minute and try again — Groq's free tier has per-minute limits."
                 )
-
             if "invalid api key" in err or "authentication" in err or "401" in err:
                 return "❌ Invalid Groq API key. Please verify your key in Streamlit Secrets."
-
             if "503" in err or "unavailable" in err:
                 return "⚠️ Groq service is temporarily unavailable. Please retry in a moment."
-
+            if "decommissioned" in err or "model_decommissioned" in err or ("404" in err and "model" in err):
+                return (
+                    f"❌ The model '{model}' is no longer available on Groq. "
+                    "Update GROQ_MODEL in your Streamlit Secrets — check "
+                    "https://console.groq.com/docs/models for a current model ID."
+                )
             return f"❌ Unexpected error: {str(exc)[:200]}"
-
         attempt += 1
-
     return "⚠️ Could not get a response after retries. Please try again."
